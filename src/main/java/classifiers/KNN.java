@@ -30,34 +30,36 @@ public class KNN extends Classifier{
     }
 
     @Override
-    public boolean test(Vector<Double> instance){
+    public synchronized boolean test(Vector<Double> instance){
 
         if(Window.size() == 0){return false;}
 
-        //Calcula a distancia euclidiana entre a instancia do parametro e as instancias da janela
-        Stream<InstanceDouble> distances = Window.stream().map(s -> new InstanceDouble(s, Similarity.EuclideanDistance(s, instance)));
+        List<InstanceDouble> distances_ = new ArrayList<>();
 
-        //Ordena as distancias
-        distances = distances.sorted(
-                new Comparator<InstanceDouble>() {
-                    @Override
-                    public int compare(InstanceDouble o1, InstanceDouble o2) {
-                        if(o1.value > o2.value){return 1;}
-                        else if(o1.value < o2.value){return -1;}
-                        return 0;
+        Window.forEach(s -> distances_.add(new InstanceDouble(s, Similarity.EuclideanDistance(s, instance))));
+
+
+        List<InstanceDouble> K_neighbours = new ArrayList<>(K);
+
+        int i=0;
+        int index=0;
+        for(InstanceDouble el : distances_){
+            if(i < K){
+                i++;
+                K_neighbours.add(el);
+            }
+            else{
+                index=0;
+                for(InstanceDouble el_k:K_neighbours){
+                    if(el.value < el_k.value){
+                        K_neighbours.remove(index);
+                        K_neighbours.add(index, el);
+                        break;
                     }
+                    index++;
                 }
-        );
-
-        List<InstanceDouble> K_neighbours;
-        //Pega os K vizinhos
-
-        if (Window.size() < K){
-            K_neighbours = new ArrayList<InstanceDouble>(distances.collect(Collectors.toList()).subList(0, Window.size()));
-        }else{
-            K_neighbours = new ArrayList<InstanceDouble>(distances.collect(Collectors.toList()).subList(0, K));
+            }
         }
-
 
         Map majorvote = new HashMap<Double, Integer>();
 

@@ -18,8 +18,10 @@ import java.util.Vector;
  */
 public class Experimenter {
     public static long finishTime;
+    public static long used;
     public static void main(String[] args) throws Exception{
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(16);
 
         Properties props = new Properties();
         props.put("bootstrap.servers", "localhost:9092");
@@ -32,7 +34,7 @@ public class Experimenter {
         Prequential myEvaluator = new Prequential();
         Evaluator.setInstance(myEvaluator);
 
-        env.enableCheckpointing(5000);
+        //env.enableCheckpointing(5000);
 
         DataStream<String> messages = env.addSource(new FlinkKafkaConsumer010("instances", new SimpleStringSchema(), props));
 ////        DataStream<Tuple2<String, String>>
@@ -63,13 +65,15 @@ public class Experimenter {
                 try {
                     System.out.println("\n\n=============================\nRunning shutdownhook..");
                     myEvaluator.PrintResults();
+                    System.err.println("Memory: " + (used/1024.0)/1024.0);
+
                 }catch (Exception e){}
             }
         });
 
+        long total = Runtime.getRuntime().totalMemory();
 
-        env.setParallelism(8);
-        finishTime=System.currentTimeMillis() + 50000;
+        finishTime=System.currentTimeMillis() + (1000*60)*5;
         env.execute("Kafka 0.10 Example");
     }
 
@@ -77,7 +81,10 @@ public class Experimenter {
 
         public static boolean run(Vector<Double> instance){
 
-            //if(System.currentTimeMillis() > finishTime){System.exit(1);}
+            if(System.currentTimeMillis() > finishTime){
+                used  = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+                System.exit(1);
+            }
 
             Classifier classifier = Classifier.getInstance();
             Evaluator evaluator = Evaluator.getInstance();
